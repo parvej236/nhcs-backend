@@ -26,4 +26,11 @@ public class Patient {
     private String bloodGroup;
     private String contactNumber;
     private String address;
+    private String occupation;
+    private String maritalStatus;
+    private String presentAddress;
+    private String permanentAddress;
+    private String emergencyContactName;
+    private String emergencyContactRelation;
+    private String emergencyContactPhone;
 }
