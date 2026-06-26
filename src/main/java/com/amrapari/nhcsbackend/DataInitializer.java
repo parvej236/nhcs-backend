@@ -90,6 +90,27 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     private void createMockPatientIfEmpty() {
+        if (userRepository.findByUsername("patient").isPresent()) {
+            User existing = userRepository.findByUsername("patient").get();
+            if (patientRepository.findByUserId(existing.getId()).isEmpty() || appointmentRepository.count() == 0) {
+                patientRepository.findByUserId(existing.getId()).ifPresent(p -> {
+                    appointmentRepository.deleteAll(appointmentRepository.findByPatientId(p.getId()));
+                    prescriptionRepository.deleteAll(prescriptionRepository.findByPatientId(p.getId()));
+                    labReportRepository.deleteAll(labReportRepository.findByPatientId(p.getId()));
+                    imagingReportRepository.deleteAll(imagingReportRepository.findByPatientId(p.getId()));
+                    patientRepository.delete(p);
+                });
+                userRepository.delete(existing);
+                
+                appointmentRepository.flush();
+                prescriptionRepository.flush();
+                labReportRepository.flush();
+                imagingReportRepository.flush();
+                patientRepository.flush();
+                userRepository.flush();
+            }
+        }
+
         if (userRepository.findByUsername("patient").isEmpty()) {
             User user = User.builder()
                     .username("patient")
