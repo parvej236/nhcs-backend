@@ -23,4 +23,10 @@ public class Doctor {
     private String licenseNumber;
     private String contactNumber;
     private String hospitalAffiliation;
+
+    private Double rating;
+    private Integer experienceYears;
+    private Integer consultationFee;
+    private String imageUrl;
 }
+
