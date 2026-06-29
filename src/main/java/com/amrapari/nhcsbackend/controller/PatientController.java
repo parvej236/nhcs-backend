@@ -14,18 +14,30 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import org.springframework.beans.factory.annotation.Value;
 
 @RestController
 @RequestMapping("/api/v1/patients")
 @RequiredArgsConstructor
 public class PatientController {
     private final PatientRepository patientRepository;
+    private final ObjectMapper objectMapper = new ObjectMapper();
     private final UserRepository userRepository;
     private final AppointmentRepository appointmentRepository;
     private final PrescriptionRepository prescriptionRepository;
     private final LabReportRepository labReportRepository;
     private final ImagingReportRepository imagingReportRepository;
     private final DoctorRepository doctorRepository;
+    private final HospitalRepository hospitalRepository;
+
+    @Value("${gemini.api.key:}")
+    private String geminiApiKey;
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR')")
@@ -121,6 +133,152 @@ public class PatientController {
 
                     return ResponseEntity.ok(response);
                 }).orElse(ResponseEntity.notFound().build());
+    }
+
+    @PostMapping("/ai-suggest")
+    @PreAuthorize("hasRole('PATIENT')")
+    public ResponseEntity<Map<String, Object>> aiSuggest(Authentication authentication, @RequestBody Map<String, String> request) {
+        String problemText = request.get("problemText");
+        if (problemText == null) problemText = "";
+        
+        String summaryEn = "Patient description analyzed: ";
+        String summaryBn = "রোগীর বিবরণ বিশ্লেষণ করা হয়েছে: ";
+        String specialization = "General Medicine";
+        
+        String apiKey = System.getenv("GEMINI_API_KEY");
+        if (apiKey == null || apiKey.isEmpty() || apiKey.startsWith("YOUR_")) {
+            apiKey = geminiApiKey;
+        }
+        boolean geminiSuccess = false;
+        
+        if (apiKey != null && !apiKey.isEmpty() && !apiKey.startsWith("YOUR_")) {
+            Map<String, String> geminiRes = callGemini(problemText, apiKey);
+            if (geminiRes != null && geminiRes.containsKey("specialization")) {
+                specialization = geminiRes.get("specialization");
+                summaryEn = geminiRes.get("summaryEn");
+                summaryBn = geminiRes.get("summaryBn");
+                geminiSuccess = true;
+            }
+        }
+        
+        if (!geminiSuccess) {
+            String cleanText = problemText.toLowerCase();
+            
+            if (cleanText.contains("বুক") || cleanText.contains("chest") || cleanText.contains("হার্ট") || cleanText.contains("heart") || cleanText.contains("ব্যথা") && (cleanText.contains("বুকের") || cleanText.contains("নিঃশ্বাস"))) {
+                specialization = "Cardiology";
+                summaryEn = "Patient reports chest pain and difficulty breathing. Recommended consultation with a Cardiologist.";
+                summaryBn = "রোগী বুকে ব্যথা এবং শ্বাসকষ্টের কথা জানিয়েছেন। হৃদরোগ বিশেষজ্ঞের (Cardiologist) পরামর্শ নেওয়ার সুপারিশ করা হচ্ছে।";
+            } else if (cleanText.contains("ডায়াবেটিস") || cleanText.contains("diabetes") || cleanText.contains("চিনি") || cleanText.contains("sugar") || cleanText.contains("হরমোন") || cleanText.contains("hormone")) {
+                specialization = "Endocrinology & Diabetology";
+                summaryEn = "Patient reports diabetes-related issues or blood sugar fluctuations. Recommended consultation with an Endocrinologist.";
+                summaryBn = "রোগী ডায়াবেটিস বা রক্তে শর্করার তারতম্যের সমস্যা জানিয়েছেন। হরমোন ও ডায়াবেটিস বিশেষজ্ঞের (Endocrinologist) পরামর্শ নেওয়ার সুপারিশ করা হচ্ছে।";
+            } else if (cleanText.contains("গর্ভবতী") || cleanText.contains("pregnant") || cleanText.contains("মহিলা") || cleanText.contains("নারী") || cleanText.contains("gynae") || cleanText.contains("গাইনি") || cleanText.contains("তলপেট")) {
+                specialization = "Gynaecology & Obstetrics";
+                summaryEn = "Patient reports pregnancy or gynaecological symptoms. Recommended consultation with a Gynaecologist.";
+                summaryBn = "রোগী গর্ভাবস্থা বা স্ত্রী-রোগ সংক্রান্ত সমস্যা জানিয়েছেন। গাইনি ও প্রসূতি বিশেষজ্ঞের (Gynaecologist) পরামর্শ নেওয়ার সুপারিশ করা হচ্ছে।";
+            } else {
+                specialization = "General Medicine";
+                summaryEn = "Patient reports general symptoms (fever, weakness, or body ache). Recommended consultation with a General Physician.";
+                summaryBn = "রোগী সাধারণ শারীরিক সমস্যা (জ্বর, দুর্বলতা বা শরীর ব্যথা) জানিয়েছেন। জেনারেল মেডিসিন বিশেষজ্ঞের পরামর্শ নেওয়ার সুপারিশ করা হচ্ছে।";
+            }
+        }
+        
+        // Find doctors matching specialization
+        String finalSpecialization = specialization;
+        List<Doctor> matchedDoctors = doctorRepository.findAll().stream()
+                .filter(d -> {
+                    String docSpec = d.getSpecialization().toLowerCase();
+                    String spec = finalSpecialization.toLowerCase();
+                    if (spec.equals("general medicine")) {
+                        return docSpec.equals("general medicine");
+                    }
+                    if (spec.equals("gynaecology & obstetrics")) {
+                        return docSpec.contains("gynaecology") || docSpec.contains("obstetrics");
+                    }
+                    if (spec.equals("endocrinology & diabetology")) {
+                        return docSpec.contains("endocrinology") || docSpec.contains("diabetology");
+                    }
+                    if (spec.equals("cardiology")) {
+                        return docSpec.contains("cardiology");
+                    }
+                    return docSpec.contains(spec.split(" ")[0]);
+                })
+                .collect(Collectors.toList());
+                
+        // If none found, fallback to all doctors
+        if (matchedDoctors.isEmpty()) {
+            matchedDoctors = doctorRepository.findAll();
+        }
+        
+        // Find suggested hospitals dynamically from the database
+        List<Hospital> allHospitals = hospitalRepository.findAll();
+        List<Map<String, Object>> suggestedHospitals = new ArrayList<>();
+        
+        // Sort/filter hospitals based on relevance to specialization
+        List<Hospital> sortedHospitals = allHospitals.stream()
+                .sorted((h1, h2) -> {
+                    String spec = finalSpecialization.toLowerCase();
+                    boolean h1Match = false;
+                    boolean h2Match = false;
+                    
+                    if (spec.contains("cardiology") || spec.contains("cardiovascular")) {
+                        h1Match = h1.getName().toLowerCase().contains("cardiovascular") || h1.getName().toLowerCase().contains("heart");
+                        h2Match = h2.getName().toLowerCase().contains("cardiovascular") || h2.getName().toLowerCase().contains("heart");
+                    } else if (spec.contains("urology") || spec.contains("kidney")) {
+                        h1Match = h1.getName().toLowerCase().contains("kidney") || h1.getName().toLowerCase().contains("urology");
+                        h2Match = h2.getName().toLowerCase().contains("kidney") || h2.getName().toLowerCase().contains("urology");
+                    } else if (spec.contains("pediatric") || spec.contains("shishu")) {
+                        h1Match = h1.getName().toLowerCase().contains("shishu") || h1.getName().toLowerCase().contains("child");
+                        h2Match = h2.getName().toLowerCase().contains("shishu") || h2.getName().toLowerCase().contains("child");
+                    } else if (spec.contains("cancer") || spec.contains("oncology")) {
+                        h1Match = h1.getName().toLowerCase().contains("cancer") || h1.getName().toLowerCase().contains("tumor");
+                        h2Match = h2.getName().toLowerCase().contains("cancer") || h2.getName().toLowerCase().contains("tumor");
+                    }
+                    
+                    if (h1Match && !h2Match) return -1;
+                    if (!h1Match && h2Match) return 1;
+                    
+                    // Fallback: sort by compliance score descending
+                    return Integer.compare(h2.getComplianceScore(), h1.getComplianceScore());
+                })
+                .limit(3)
+                .collect(Collectors.toList());
+                
+        // Map to response format
+        for (Hospital h : sortedHospitals) {
+            Map<String, Object> hMap = new HashMap<>();
+            hMap.put("name", h.getName());
+            
+            // Generate a realistic address based on division
+            String address = h.getDivision() + ", Bangladesh";
+            if (h.getDivision().equalsIgnoreCase("Dhaka")) {
+                if (h.getName().contains("United")) {
+                    address = "Gulshan, Dhaka";
+                } else if (h.getName().contains("Square")) {
+                    address = "Panthapath, Dhaka";
+                } else if (h.getName().contains("Labaid") || h.getName().contains("Ibn Sina")) {
+                    address = "Dhanmondi, Dhaka";
+                } else {
+                    address = "Dhaka, Bangladesh";
+                }
+            }
+            hMap.put("address", address);
+            
+            // Calculate a consistent mock distance based on ID
+            double dist = 0.5 + (h.getId() % 7) * 0.6;
+            hMap.put("distance", String.format(Locale.US, "%.1f km", dist));
+            
+            suggestedHospitals.add(hMap);
+        }
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("summaryEn", summaryEn);
+        response.put("summaryBn", summaryBn);
+        response.put("specialization", specialization);
+        response.put("suggestedHospitals", suggestedHospitals);
+        response.put("suggestedDoctors", matchedDoctors);
+        
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/me/appointments")
@@ -466,6 +624,70 @@ public class PatientController {
         private String doctorId;
         private String date;
         private String timeSlot;
+    }
+
+    private Map<String, String> callGemini(String problemText, String apiKey) {
+        try {
+            HttpClient client = HttpClient.newBuilder()
+                    .connectTimeout(java.time.Duration.ofSeconds(5))
+                    .build();
+            
+            String prompt = "You are a clinical symptom classification assistant. You must analyze the patient's symptom description in Bangla or English, categorize it into a medical specialization (Cardiology, Endocrinology & Diabetology, Gynaecology & Obstetrics, General Medicine, Ophthalmology, Psychiatry, Dermatology, Gastroenterology, ENT, Neuromedicine, Pulmonology, Orthopedics, Urology, Pediatrics, or General Surgery), and generate a concise health summary in both English and Bangla. Return a JSON object matching this structure: {\"specialization\": \"Specialization Name\", \"summaryEn\": \"English summary...\", \"summaryBn\": \"Bangla summary...\"}. Patient's symptom: " + problemText;
+
+            Map<String, Object> part = new HashMap<>();
+            part.put("text", prompt);
+            
+            Map<String, Object> contentItem = new HashMap<>();
+            contentItem.put("parts", List.of(part));
+            
+            Map<String, Object> generationConfig = new HashMap<>();
+            generationConfig.put("responseMimeType", "application/json");
+            
+            Map<String, Object> body = new HashMap<>();
+            body.put("contents", List.of(contentItem));
+            body.put("generationConfig", generationConfig);
+            
+            String requestBody = objectMapper.writeValueAsString(body);
+            
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + apiKey))
+                    .header("Content-Type", "application/json")
+                    .timeout(java.time.Duration.ofSeconds(10))
+                    .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                    .build();
+            
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            
+            if (response.statusCode() == 200) {
+                Map<String, Object> jsonResponse = objectMapper.readValue(response.body(), Map.class);
+                List<Map<String, Object>> candidates = (List<Map<String, Object>>) jsonResponse.get("candidates");
+                if (candidates != null && !candidates.isEmpty()) {
+                    Map<String, Object> content = (Map<String, Object>) candidates.get(0).get("content");
+                    if (content != null) {
+                        List<Map<String, Object>> parts = (List<Map<String, Object>>) content.get("parts");
+                        if (parts != null && !parts.isEmpty()) {
+                            String text = (String) parts.get(0).get("text");
+                            if (text != null) {
+                                text = text.trim();
+                                if (text.startsWith("```")) {
+                                    int firstNewline = text.indexOf('\n');
+                                    int lastBackticks = text.lastIndexOf("```");
+                                    if (firstNewline != -1 && lastBackticks > firstNewline) {
+                                        text = text.substring(firstNewline, lastBackticks).trim();
+                                    }
+                                }
+                                return objectMapper.readValue(text, Map.class);
+                            }
+                        }
+                    }
+                }
+            } else {
+                System.err.println("Gemini API returned error code: " + response.statusCode() + " Body: " + response.body());
+            }
+        } catch (Exception e) {
+            System.err.println("Gemini API call failed: " + e.getMessage());
+        }
+        return null;
     }
 }
 

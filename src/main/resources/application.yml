@@ -1,8 +1,8 @@
 spring:
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/nhcs_db
-    username: postgres
-    password: 'nehal"1458112'
+    username: root
+    password: 'Quanfey'
   jpa:
     hibernate:
       ddl-auto: update
@@ -13,3 +13,7 @@ spring:
 
 jwt:
   secret: ${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+
+gemini:
+  api:
+    key: ${GEMINI_API_KEY:}
