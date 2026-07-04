@@ -1,13 +1,11 @@
 package com.amrapari.nhcsbackend.service;
 
-import com.amrapari.nhcsbackend.domain.Doctor;
 import com.amrapari.nhcsbackend.domain.Patient;
 import com.amrapari.nhcsbackend.domain.Role;
 import com.amrapari.nhcsbackend.domain.User;
 import com.amrapari.nhcsbackend.dto.AuthRequest;
 import com.amrapari.nhcsbackend.dto.AuthResponse;
 import com.amrapari.nhcsbackend.dto.RegisterRequest;
-import com.amrapari.nhcsbackend.repository.DoctorRepository;
 import com.amrapari.nhcsbackend.repository.PatientRepository;
 import com.amrapari.nhcsbackend.repository.UserRepository;
 import com.amrapari.nhcsbackend.security.JwtService;
@@ -25,18 +23,17 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final PatientRepository patientRepository;
-    private final DoctorRepository doctorRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
 
 
     public AuthResponse register(RegisterRequest request) {
+        // Public self-registration is PATIENT-only (Locked Decision). Any elevated
+        // role sent in the request is ignored — Doctor / Hospital / Admin accounts
+        // are seeded, never self-created. See DataInitializer.
         Set<Role> roles = new HashSet<>();
         roles.add(Role.PATIENT);
-        if (request.getRole() != null && request.getRole() != Role.PATIENT) {
-            roles.add(request.getRole());
-        }
 
         var user = User.builder()
                 .username(request.getUsername())
@@ -46,20 +43,11 @@ public class AuthService {
                 .build();
         userRepository.save(user);
 
-        if (user.getRoles().contains(Role.PATIENT)) {
-            var patient = Patient.builder()
-                    .user(user)
-                    .fullName(request.getFullName())
-                    .build();
-            patientRepository.save(patient);
-        }
-        if (user.getRoles().contains(Role.DOCTOR)) {
-            var doctor = Doctor.builder()
-                    .user(user)
-                    .fullName(request.getFullName())
-                    .build();
-            doctorRepository.save(doctor);
-        }
+        var patient = Patient.builder()
+                .user(user)
+                .fullName(request.getFullName())
+                .build();
+        patientRepository.save(patient);
 
         var jwtToken = jwtService.generateToken(user);
         return AuthResponse.builder()

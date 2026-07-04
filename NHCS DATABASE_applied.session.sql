@@ -38,6 +38,7 @@ INSERT INTO hospitals (id, facility_id, name, division, classification, total_be
 INSERT INTO hospitals (id, facility_id, name, division, classification, total_beds, occupied_beds, compliance_score, status) VALUES (27, 'FAC-1022', 'National Institute of Kidney Diseases & Urology', 'Dhaka', 'Public', 250, 230, 88, 'Active');
 INSERT INTO hospitals (id, facility_id, name, division, classification, total_beds, occupied_beds, compliance_score, status) VALUES (28, 'FAC-1023', 'North West Medical College & Hospital', 'Rajshahi', 'Private', 200, 140, 83, 'Active');
 INSERT INTO hospitals (id, facility_id, name, division, classification, total_beds, occupied_beds, compliance_score, status) VALUES (29, 'FAC-1024', 'Jashore General Hospital', 'Khulna', 'Public', 250, 240, 80, 'Active');
+INSERT INTO hospitals (id, facility_id, name, division, classification, total_beds, occupied_beds, compliance_score, status) VALUES (30, 'FAC-1001', 'Dhaka Medical College Hospital', 'Dhaka', 'Public', 2600, 2450, 88, 'Active');
 
 -- 1. Insert Users
 INSERT INTO users (id, username, password, email) VALUES (1, 'nehal', '$2a$10$zrHywZZYAw3RZP1ACnltRuuLq8jsTtu7X0MM9.jVXiFSJz32lbStu', 'nehal@gmail.com');

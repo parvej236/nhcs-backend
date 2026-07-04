@@ -24,4 +24,20 @@ public class PatientChronicDisease {
     private String diseaseName;
     private String status;
     private LocalDate diagnosedDate;
+
+    // Explicit Getters and Setters to bypass IDE LSP analyzer warnings
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+
+    public Patient getPatient() { return patient; }
+    public void setPatient(Patient patient) { this.patient = patient; }
+
+    public String getDiseaseName() { return diseaseName; }
+    public void setDiseaseName(String diseaseName) { this.diseaseName = diseaseName; }
+
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+
+    public LocalDate getDiagnosedDate() { return diagnosedDate; }
+    public void setDiagnosedDate(LocalDate diagnosedDate) { this.diagnosedDate = diagnosedDate; }
 }

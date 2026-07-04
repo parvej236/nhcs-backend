@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NHCS - Interactive Design System Prototype</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- React, ReactDOM and Babel -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Global CSS System Styles -->
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Outfit', sans-serif;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #0b0f19;
+            color: #f1f5f9;
+        }
+
+        #root {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        /* Error Overlay Styling */
+        #error-overlay {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #7f1d1d;
+            border: 2px solid #ef4444;
+            color: #fca5a5;
+            padding: 20px;
+            border-radius: 12px;
+            max-width: 500px;
+            z-index: 99999;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            font-family: monospace;
+            display: none;
+        }
+
+        #error-overlay h3 {
+            color: #fecaca;
+            margin-bottom: 8px;
+            font-family: monospace;
+        }
+
+        #error-overlay pre {
+            white-space: pre-wrap;
+            font-size: 12px;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+
+        #error-overlay .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <!-- Error Handler Overlay -->
+    <div id="error-overlay">
+        <button style="position: absolute; top: 10px; right: 10px; background: rgba(255,255,255,0.1); border: none; color: white; padding: 2px 6px; border-radius: 4px; cursor: pointer;" onclick="document.getElementById('error-overlay').style.display='none'">✕</button>
+        <h3>⚠️ Runtime Error Detected</h3>
+        <pre id="error-message"></pre>
+    </div>
+
+    <script>
+        // Global Error Interceptor
+        window.addEventListener('error', function(event) {
+            const overlay = document.getElementById('error-overlay');
+            const messageEl = document.getElementById('error-message');
+            if (overlay && messageEl) {
+                overlay.style.display = 'block';
+                messageEl.textContent = event.error ? event.error.stack : event.message;
+            }
+        });
+
+        window.addEventListener('unhandledrejection', function(event) {
+            const overlay = document.getElementById('error-overlay');
+            const messageEl = document.getElementById('error-message');
+            if (overlay && messageEl) {
+                overlay.style.display = 'block';
+                messageEl.textContent = 'Unhandled promise rejection: ' + event.reason;
+            }
+        });
+    </script>
+
+    <!-- Loader configuration for Babel Standalone -->
+    <script type="text/babel" src="system.jsx"></script>
+    <script type="text/babel" src="chrome.jsx"></script>
+    <script type="text/babel" src="screens-common.jsx"></script>
+    <script type="text/babel" src="screens-features.jsx"></script>
+    <script type="text/babel" src="design-canvas.jsx"></script>
+    <script type="text/babel" src="ios-frame.jsx"></script>
+    <script type="text/babel" src="tweaks-panel.jsx"></script>
+    <script type="text/babel" src="app.jsx"></script>
+</body>
+</html>

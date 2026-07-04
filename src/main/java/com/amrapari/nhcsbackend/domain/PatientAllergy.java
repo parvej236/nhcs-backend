@@ -23,4 +23,20 @@ public class PatientAllergy {
     private String allergen;
     private String severity;
     private String reaction;
+
+    // Explicit Getters and Setters to bypass IDE LSP analyzer warnings
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+
+    public Patient getPatient() { return patient; }
+    public void setPatient(Patient patient) { this.patient = patient; }
+
+    public String getAllergen() { return allergen; }
+    public void setAllergen(String allergen) { this.allergen = allergen; }
+
+    public String getSeverity() { return severity; }
+    public void setSeverity(String severity) { this.severity = severity; }
+
+    public String getReaction() { return reaction; }
+    public void setReaction(String reaction) { this.reaction = reaction; }
 }

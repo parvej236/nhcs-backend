@@ -322,6 +322,8 @@ public class PatientController {
                             .timeSlot(request.getTimeSlot())
                             .queueNumber(queueNo)
                             .status("Upcoming")
+                            .approvalStatus("PENDING")
+                            .arrivalStatus("AWAITING")
                             .hospitalName(doctor.getHospitalAffiliation() != null ? doctor.getHospitalAffiliation() : "Dhaka Central Hospital")
                             .build();
 
