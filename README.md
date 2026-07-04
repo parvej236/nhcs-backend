@@ -4,52 +4,43 @@ A robust Spring Boot REST API serving as the backend core of the **National Heal
 
 ---
 
-## 🌟 Key Features
+## 🗺️ How the System Serves Citizens (End-to-End Process Flow)
 
-* **🛡️ Secure JWT Authentication:** Role-based access control supporting `PATIENT`, `DOCTOR`, and `HOSPITAL` roles.
-* **🩸 AI Blood Matcher Engine:** Computes compatible blood donors in real-time based on blood groups, geography, and active donation status.
-* **🩺 Vitals Risk Analyzer:** Analyzes patient symptoms and vitals (systolic/diastolic BP, heart rate, blood glucose) to categorize risk.
-* **👨‍⚕️ Smart Doctor Recommendation:** Matches patient symptom reports to the most relevant doctor specializations using advanced database filters.
-* **🗃️ Judge Check Data Seeding:** Automatic seeding of unified mock patient data, prescriptions, lab results, imaging scans, and appointments linked to default login profiles.
+The system operates as a unified, connected healthcare network designed to serve citizens, clinics, and medical staff efficiently:
+
+### 1. Public Health Entry & AI Symptom Analysis
+* **Bangla AI Symptom Analyzer:** Citizens describe their health condition in Bangla (e.g., chest tightness, elevated pulse). The system analyzes the text along with vitals (Blood Pressure, Blood Glucose, Heart Rate) to evaluate risk.
+* **Smart Specialty Suggestions:** The system recommends a clinical category (e.g., Cardiology, Endocrinology) and dynamically matches the best specialists from the active database.
+
+### 2. Connected Appointment Booking & Medical Vault
+* **Doctor Booking:** Registered patients book appointments.
+* **Unified History Logging:** Successful clinical consultations feed directly into the patient's secure **Medical Vault**, creating integrated prescriptions (medicine lists, follow-up dates), lab reports (categorized biochem indicators like Troponin-I), and imaging reports (cardiac scans).
+
+### 3. Public Emergency Blood Requests
+* **No Sign-In Required:** Anyone can submit emergency blood requests from the dashboard, detailing patient names, locations, urgency, and past disease histories.
+* **Hospital Matching CommandCenter:** Hospitals see requests on their dashboard as `Pending`.
+
+### 4. AI Donor Matching & Fulfillment
+* **Location & Compatibility Check:** When the hospital runs the **AI Donor Matcher**, the algorithm queries the active blood registry. It ranks donors based on:
+  * Blood group compatibility (e.g. O+ compatible donors).
+  * Geodistances to the hospital facility.
+  * Donation eligibility status (last donation date > 3 months).
+* **Fulfillment:** Hospitals send notifications directly to selected donors, exposing contact numbers for immediate coordination.
 
 ---
 
-## 🛠️ Tech Stack
+## 🛠️ Technology Stack
 
 * **Language:** Java 21
-* **Framework:** Spring Boot 3.x, Spring Data JPA, Spring Security
+* **Framework:** Spring Boot 3.x, Spring Data JPA, Spring Security (JWT-based role protection)
 * **Build Tool:** Maven (Wrapper included)
+* **Database:** PostgreSQL / H2 database
 * **Libraries:** Lombok, Jackson
 
 ---
 
-## 🧪 Seeding & Default Credentials (Judge Check)
+## 🔮 Future Enhancements
 
-The backend auto-seeds the database with default profiles for evaluation purposes:
-
-| Username | Password | Role | Description / Seeding Context |
-| :--- | :--- | :--- | :--- |
-| `patient_judge` | `password123` | Patient | Laila Khan (Dhanmondi, O+, seeds 2 appointments, labs, ECG, and O+ donor status) |
-| `doctor_judge` | `password123` | Doctor | Dr. Rahim Chowdhury (Cardiology, Dhaka Medical College Hospital) |
-| `hospital_judge` | `password123` | Hospital | Dhaka Medical College Hospital portal login |
-
----
-
-## 🚀 Execution Instructions
-
-### Prerequisites
-* JDK 21
-* Maven 3.8+ (optional, wrapper is included)
-
-### Compile and Start
-Run the following commands in the `nhcs-backend` root folder:
-
-```bash
-# Clean and compile the Java project
-./mvnw clean compile
-
-# Start the Spring Boot Application
-./mvnw spring-boot:run
-```
-
-The application starts by default at `http://localhost:8080`.
+* **📍 Live Geolocation Routing:** Integrate real-time GIS mapping (e.g., Google Maps APIs) to calculate actual live road distances rather than coordinate approximation.
+* **📊 Big Data Disease Surveillance:** Implement regional health diagnostic heatmaps to help the government predict outbreak hotspots (e.g., Dengue or Hypertension clusters) based on anonymous vitals analyzer queries.
+* **📱 SMS/Push Donor Alerts:** Automate SMS alerts to compatible blood donors via telco API gateways immediately when an emergency request is placed.
