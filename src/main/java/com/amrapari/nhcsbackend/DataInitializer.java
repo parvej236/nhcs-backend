@@ -29,12 +29,83 @@ public class DataInitializer implements CommandLineRunner {
     private final LabReportRepository labReportRepository;
     private final ImagingReportRepository imagingReportRepository;
     private final PasswordEncoder passwordEncoder;
+    private final BloodRequestRepository bloodRequestRepository;
+    private final BloodDonorRepository bloodDonorRepository;
 
     @Override
     public void run(String... args) throws Exception {
         createMockHospitalsIfEmpty();
         createMockDoctorsIfEmpty();
         createMockPatientIfEmpty();
+        createLoginAccountsIfEmpty();
+        createMockBloodRequestsIfEmpty();
+        createJudgeDataIfEmpty();
+    }
+
+    /**
+     * Seeds the demo login accounts for the elevated roles. Patient
+     * self-registers (see AuthService); Doctor / Hospital / Admin are never
+     * self-created, so they are seeded here. The doctor account is linked to an
+     * existing seeded Doctor profile so it resolves the doctor portal on login.
+     *
+     * Dev demo credentials (do NOT ship to production): doctor / password123
+     * (ROLE_DOCTOR, linked to Dr. Ahmed Chowdhury) hospital / password123
+     * (ROLE_HOSPITAL) The existing patient account is seeded in
+     * createMockPatientIfEmpty(): patient / password123 (ROLE_PATIENT)
+     */
+    private void createLoginAccountsIfEmpty() {
+        if (userRepository.findByUsername("doctor").isEmpty()) {
+            User doctorUser = User.builder()
+                    .username("doctor")
+                    .email("doctor@nhcs.gov")
+                    .password(passwordEncoder.encode("password123"))
+                    .roles(new HashSet<>(Set.of(Role.DOCTOR)))
+                    .build();
+            userRepository.save(doctorUser);
+
+            // Link this login account to a seeded doctor profile that has no user yet
+            // so the doctor portal resolves a profile for the authenticated user.
+            // If every profile is already linked, create a fresh one for the login.
+            Doctor unlinked = doctorRepository.findAll().stream()
+                    .filter(d -> d.getUser() == null)
+                    .findFirst()
+                    .orElse(null);
+            if (unlinked != null) {
+                unlinked.setUser(doctorUser);
+                doctorRepository.save(unlinked);
+            } else {
+                doctorRepository.save(Doctor.builder()
+                        .user(doctorUser)
+                        .fullName("Dr. Demo Physician")
+                        .specialization("General Medicine")
+                        .licenseNumber("MBBS-DEMO")
+                        .hospitalAffiliation("Dhaka Central Hospital")
+                        .rating(4.8)
+                        .experienceYears(10)
+                        .consultationFee(800)
+                        .build());
+            }
+        }
+
+        if (userRepository.findByUsername("hospital").isEmpty()) {
+            User hospitalUser = User.builder()
+                    .username("hospital")
+                    .email("hospital@nhcs.gov")
+                    .password(passwordEncoder.encode("password123"))
+                    .roles(new HashSet<>(Set.of(Role.HOSPITAL)))
+                    .build();
+            userRepository.save(hospitalUser);
+        }
+
+        if (userRepository.findByUsername("admin").isEmpty()) {
+            User adminUser = User.builder()
+                    .username("admin")
+                    .email("admin@nhcs.gov")
+                    .password(passwordEncoder.encode("password123"))
+                    .roles(new HashSet<>(Set.of(Role.ADMIN)))
+                    .build();
+            userRepository.save(adminUser);
+        }
     }
 
     private void createMockDoctorsIfEmpty() {
@@ -101,7 +172,7 @@ public class DataInitializer implements CommandLineRunner {
                     patientRepository.delete(p);
                 });
                 userRepository.delete(existing);
-                
+
                 appointmentRepository.flush();
                 prescriptionRepository.flush();
                 labReportRepository.flush();
@@ -186,6 +257,8 @@ public class DataInitializer implements CommandLineRunner {
                         .timeSlot("10:30 AM")
                         .queueNumber("Q-07")
                         .status("Upcoming")
+                        .approvalStatus("PENDING")
+                        .arrivalStatus("AWAITING")
                         .hospitalName("Dhaka Central Hospital")
                         .build());
 
@@ -197,6 +270,8 @@ public class DataInitializer implements CommandLineRunner {
                         .timeSlot("09:00 AM")
                         .queueNumber("Q-03")
                         .status("Past")
+                        .approvalStatus("APPROVED")
+                        .arrivalStatus("COMPLETED")
                         .hospitalName("Dhaka Central Hospital")
                         .build());
             }
@@ -210,6 +285,8 @@ public class DataInitializer implements CommandLineRunner {
                         .timeSlot("04:30 PM")
                         .queueNumber("Q-14")
                         .status("Upcoming")
+                        .approvalStatus("APPROVED")
+                        .arrivalStatus("AWAITING")
                         .hospitalName("National Medical Center")
                         .build());
             }
@@ -324,5 +401,207 @@ public class DataInitializer implements CommandLineRunner {
                     .build());
         }
     }
-}
 
+    private void createMockBloodRequestsIfEmpty() {
+        if (bloodRequestRepository.count() == 0) {
+            bloodRequestRepository.save(BloodRequest.builder()
+                    .patientName("Karim Uddin")
+                    .bloodGroup("O+")
+                    .urgency("High")
+                    .hospital("Dhaka Central Hospital")
+                    .location("Dhanmondi, Dhaka")
+                    .timeline("Within 2 hours")
+                    .status("Pending")
+                    .build());
+
+            bloodRequestRepository.save(BloodRequest.builder()
+                    .patientName("Sultana Begum")
+                    .bloodGroup("O+")
+                    .urgency("Medium")
+                    .hospital("National Medical Center")
+                    .location("Dhaka")
+                    .timeline("By tomorrow morning")
+                    .status("Pending")
+                    .build());
+
+            bloodRequestRepository.save(BloodRequest.builder()
+                    .patientName("Fahim Ahmed")
+                    .bloodGroup("O+")
+                    .urgency("High")
+                    .hospital("Chittagong General Hospital")
+                    .location("Chittagong")
+                    .timeline("Urgent")
+                    .status("Pending")
+                    .build());
+        }
+    }
+
+    private void createJudgeDataIfEmpty() {
+        if (userRepository.findByUsername("patient_judge").isEmpty()) {
+            User patientUser = User.builder()
+                    .username("patient_judge")
+                    .email("patient_judge@nhcs.gov")
+                    .password(passwordEncoder.encode("password123"))
+                    .roles(new HashSet<>(Set.of(Role.PATIENT)))
+                    .build();
+            userRepository.save(patientUser);
+
+            Patient patientJudge = Patient.builder()
+                    .user(patientUser)
+                    .fullName("Laila Khan")
+                    .dateOfBirth(LocalDate.of(1982, 12, 5))
+                    .gender("Female")
+                    .bloodGroup("O+")
+                    .nationalId("8210398457")
+                    .contactNumber("+880 1712-345678")
+                    .address("House 45, Road 12, Dhanmondi, Dhaka 1209")
+                    .occupation("Service Holder")
+                    .maritalStatus("Married")
+                    .presentAddress("House 45, Road 12, Dhanmondi, Dhaka 1209")
+                    .permanentAddress("Village Purbadhala, Netrokona, Mymensingh")
+                    .emergencyContactName("Nusrat Jahan")
+                    .emergencyContactRelation("Spouse")
+                    .emergencyContactPhone("+880 1911-987654")
+                    .bpSystolic("165")
+                    .bpDiastolic("100")
+                    .bloodGlucose("180")
+                    .heartRate("110")
+                    .weight("75")
+                    .vitalsLastUpdated(LocalDateTime.now())
+                    .build();
+            patientRepository.save(patientJudge);
+
+            allergyRepository.save(PatientAllergy.builder()
+                    .patient(patientJudge)
+                    .allergen("Penicillin")
+                    .severity("Severe")
+                    .reaction("Anaphylaxis, hives")
+                    .build());
+
+            chronicDiseaseRepository.save(PatientChronicDisease.builder()
+                    .patient(patientJudge)
+                    .diseaseName("Hypertension")
+                    .status("Active")
+                    .diagnosedDate(LocalDate.of(2023, 6, 20))
+                    .build());
+
+            User doctorUser = userRepository.findByUsername("doctor_judge").orElseGet(() -> {
+                User du = User.builder()
+                        .username("doctor_judge")
+                        .email("doctor_judge@nhcs.gov")
+                        .password(passwordEncoder.encode("password123"))
+                        .roles(new HashSet<>(Set.of(Role.DOCTOR)))
+                        .build();
+                return userRepository.save(du);
+            });
+
+            Doctor docJudge = doctorRepository.save(Doctor.builder()
+                    .user(doctorUser)
+                    .fullName("Dr. Rahim Chowdhury")
+                    .specialization("Cardiology")
+                    .licenseNumber("MBBS-JUDGE")
+                    .contactNumber("+8801722222222")
+                    .hospitalAffiliation("Dhaka Medical College Hospital")
+                    .rating(4.99)
+                    .experienceYears(3)
+                    .consultationFee(600)
+                    .imageUrl("https://images.unsplash.com/photo-1622253692010-333f2da6031d?q=80&w=200&auto=format&fit=crop")
+                    .build());
+
+            User hospitalUser = userRepository.findByUsername("hospital_judge").orElseGet(() -> {
+                User hu = User.builder()
+                        .username("hospital_judge")
+                        .email("hospital_judge@nhcs.gov")
+                        .password(passwordEncoder.encode("password123"))
+                        .roles(new HashSet<>(Set.of(Role.HOSPITAL)))
+                        .build();
+                return userRepository.save(hu);
+            });
+
+            appointmentRepository.save(Appointment.builder()
+                    .id("APP-JUDGE-1")
+                    .patient(patientJudge)
+                    .doctor(docJudge)
+                    .date(LocalDate.now().plusDays(1))
+                    .timeSlot("10:30 AM")
+                    .queueNumber("Q-01")
+                    .status("Upcoming")
+                    .approvalStatus("PENDING")
+                    .arrivalStatus("AWAITING")
+                    .hospitalName("Dhaka Medical College Hospital")
+                    .build());
+
+            appointmentRepository.save(Appointment.builder()
+                    .id("APP-JUDGE-2")
+                    .patient(patientJudge)
+                    .doctor(docJudge)
+                    .date(LocalDate.now().minusDays(3))
+                    .timeSlot("09:00 AM")
+                    .queueNumber("Q-03")
+                    .status("Past")
+                    .approvalStatus("APPROVED")
+                    .arrivalStatus("COMPLETED")
+                    .hospitalName("Dhaka Medical College Hospital")
+                    .build());
+
+            Prescription pr = Prescription.builder()
+                    .id("PR-JUDGE-1")
+                    .patient(patientJudge)
+                    .date(LocalDateTime.now().minusDays(3))
+                    .doctorName("Dr. Rahim Chowdhury")
+                    .doctorSpecialization("Cardiology")
+                    .hospitalName("Dhaka Medical College Hospital")
+                    .diagnosis("Hypertensive Emergency & Tachycardia")
+                    .clinicalNotes("Avoid strenuous physical work. Follow up in 30 days.")
+                    .followUpDate(LocalDate.now().plusDays(27).toString())
+                    .build();
+            pr.getMedicines().add(Medicine.builder().prescription(pr).name("Amlodipine").dosage("5mg").instruction("1 tablet once daily").duration("30 days").build());
+            prescriptionRepository.save(pr);
+
+            LabReport lr = LabReport.builder()
+                    .id("LR-JUDGE-1")
+                    .patient(patientJudge)
+                    .testName("Cardiac Enzymes & Troponin-I")
+                    .category("Cardiology Lab")
+                    .date(LocalDateTime.now().minusDays(3))
+                    .hospitalName("Dhaka Medical College Hospital Lab")
+                    .doctorName("Dr. Rahim Chowdhury")
+                    .status("Published")
+                    .aiInterpretation("WARNING: Troponin-I levels are slightly elevated (0.04 ng/mL). BP is critical. Urgent cardiology referral suggested.")
+                    .build();
+            lr.getResults().add(LabTestResult.builder().labReport(lr).parameter("Troponin-I").value("0.04").unit("ng/mL").referenceRange("< 0.01").status("High").build());
+            labReportRepository.save(lr);
+
+            imagingReportRepository.save(ImagingReport.builder()
+                    .id("IM-JUDGE-1")
+                    .patient(patientJudge)
+                    .type("Echocardiogram (ECG)")
+                    .bodyPart("Heart")
+                    .date(LocalDateTime.now().minusDays(3))
+                    .hospitalName("Dhaka Medical College Hospital")
+                    .doctorName("Dr. Rahim Chowdhury")
+                    .imageUrl("https://images.unsplash.com/photo-1559757175-5700dde675bc?q=80&w=600&auto=format&fit=crop")
+                    .findings("Left ventricular hypertrophy. Ejection fraction: 55%. Normal valvular structure.")
+                    .impression("Mild Left Ventricular Hypertrophy, consistent with chronic hypertension.")
+                    .build());
+
+            bloodDonorRepository.save(BloodDonor.builder()
+                    .patient(patientJudge)
+                    .bloodGroup("O+")
+                    .lastDonationDate(LocalDate.now().minusMonths(4))
+                    .active(true)
+                    .build());
+
+            bloodRequestRepository.save(BloodRequest.builder()
+                    .patientName("Judge Blood Case")
+                    .bloodGroup("O+")
+                    .urgency("High")
+                    .hospital("Dhaka Medical College Hospital")
+                    .location("Dhanmondi, Dhaka")
+                    .timeline("Within 3 hours")
+                    .status("Pending")
+                    .previousDiseaseHistory("No major chronic diseases")
+                    .build());
+        }
+    }
+}
