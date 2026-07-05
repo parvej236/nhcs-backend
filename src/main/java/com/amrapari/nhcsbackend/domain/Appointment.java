@@ -31,6 +31,8 @@ public class Appointment {
     // Slice 5 fields
     private String approvalStatus; // PENDING, APPROVED, REJECTED
     private String arrivalStatus; // AWAITING, CHECKED_IN, COMPLETED
+    private String visitType; // First Consultation, Follow-up, Emergency, Referral
+    private String riskIndicator; // Low, Moderate, High, Emergency
 
     // Explicit Getters and Setters to bypass IDE LSP analyzer warnings
     public String getId() { return id; }
@@ -62,4 +64,49 @@ public class Appointment {
 
     public String getArrivalStatus() { return arrivalStatus; }
     public void setArrivalStatus(String arrivalStatus) { this.arrivalStatus = arrivalStatus; }
+
+    public String getVisitType() { return visitType; }
+    public void setVisitType(String visitType) { this.visitType = visitType; }
+
+    public String getRiskIndicator() { return riskIndicator; }
+    public void setRiskIndicator(String riskIndicator) { this.riskIndicator = riskIndicator; }
+
+    // Serialization helper getters for frontend mapping
+    public String getPatientName() {
+        return patient != null ? patient.getFullName() : null;
+    }
+
+    public Integer getPatientAge() {
+        if (patient == null || patient.getDateOfBirth() == null) return null;
+        return java.time.Period.between(patient.getDateOfBirth(), java.time.LocalDate.now()).getYears();
+    }
+
+    public String getPatientGender() {
+        return patient != null ? patient.getGender() : null;
+    }
+
+    public String getPatientHealthId() {
+        // Unified Health ID used across the whole system. Must match the format
+        // emitted by PatientController.mapToProfileDto ("NUD-000-<id>") and the
+        // resolver logic (trailing numeric segment = patient id) so that the
+        // doctor's Clinical Workspace and the treatment-submission endpoints all
+        // resolve back to the SAME real patient.
+        return patient != null ? "NUD-000-" + patient.getId() : null;
+    }
+
+    public String getBpSystolic() {
+        return patient != null ? patient.getBpSystolic() : null;
+    }
+
+    public String getBpDiastolic() {
+        return patient != null ? patient.getBpDiastolic() : null;
+    }
+
+    public String getBloodGlucose() {
+        return patient != null ? patient.getBloodGlucose() : null;
+    }
+
+    public String getPatientBloodGroup() {
+        return patient != null ? patient.getBloodGroup() : null;
+    }
 }

@@ -222,9 +222,25 @@ public class HospitalController {
 
     @GetMapping("/lab-orders")
     @PreAuthorize("hasAnyRole('HOSPITAL', 'ADMIN')")
-    public ResponseEntity<List<com.amrapari.nhcsbackend.domain.LabReport>> getLabOrders() {
-        List<com.amrapari.nhcsbackend.domain.LabReport> orders = labReportRepository.findAll().stream()
+    public ResponseEntity<List<Map<String, Object>>> getLabOrders() {
+        // Pending lab requests raised by doctors. Returned as a flat DTO (never
+        // the raw LabReport graph) so the hospital Laboratory queue gets exactly
+        // the fields it needs — patient name + Unified Health ID included.
+        List<Map<String, Object>> orders = labReportRepository.findAll().stream()
                 .filter(report -> "PENDING".equals(report.getStatus()))
+                .map(report -> {
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("id", report.getId());
+                    map.put("testName", report.getTestName());
+                    map.put("category", report.getCategory() != null ? report.getCategory() : "Diagnostics");
+                    map.put("doctorName", report.getDoctorName() != null ? report.getDoctorName() : "Attending Physician");
+                    map.put("hospitalName", report.getHospitalName());
+                    map.put("status", report.getStatus());
+                    map.put("date", report.getDate() != null ? report.getDate().toString() : null);
+                    map.put("patientName", report.getPatient() != null ? report.getPatient().getFullName() : "Unknown");
+                    map.put("healthId", report.getPatient() != null ? "NUD-000-" + report.getPatient().getId() : "");
+                    return map;
+                })
                 .collect(java.util.stream.Collectors.toList());
         return ResponseEntity.ok(orders);
     }
@@ -235,8 +251,14 @@ public class HospitalController {
             @PathVariable String id,
             @RequestBody LabReportUploadDto dto) {
         com.amrapari.nhcsbackend.domain.LabReport report = labReportRepository.findById(id).orElseThrow();
-        
-        report.setStatus("COMPLETED");
+
+        // "Published" is the status the patient's Medical Vault recognises as a
+        // finalised, viewable report (see MedicalVaultPage), so publishing the
+        // scanned results here makes them immediately visible to the patient.
+        report.setStatus("Published");
+        if (report.getDate() == null) {
+            report.setDate(java.time.LocalDateTime.now());
+        }
         if (dto.getResults() != null) {
             for (LabTestResultDto resDto : dto.getResults()) {
                 com.amrapari.nhcsbackend.domain.LabTestResult res = com.amrapari.nhcsbackend.domain.LabTestResult.builder()

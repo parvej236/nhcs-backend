@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -368,6 +369,24 @@ public class PatientController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    /**
+     * Converts a stored appointment time slot label (e.g. "10:30 AM") into an
+     * ISO local-time fragment ("10:30:00.000") so the timeline reflects the real
+     * booked time. Falls back to 09:00 if the slot is missing or unparseable.
+     */
+    private String parseTimeSlotToIso(String timeSlot) {
+        if (timeSlot != null && !timeSlot.isBlank()) {
+            try {
+                LocalTime t = LocalTime.parse(timeSlot.trim().toUpperCase(),
+                        DateTimeFormatter.ofPattern("hh:mm a", Locale.ENGLISH));
+                return t.format(DateTimeFormatter.ofPattern("HH:mm:ss.SSS"));
+            } catch (Exception ignored) {
+                // fall through to default below
+            }
+        }
+        return "09:00:00.000";
+    }
+
     @GetMapping("/me/timeline")
     @PreAuthorize("hasRole('PATIENT')")
     public ResponseEntity<List<Map<String, Object>>> getMyTimeline(Authentication authentication) {
@@ -389,7 +408,7 @@ public class PatientController {
                         event.put("type", "consultation");
                         event.put("title", "Consultation with " + app.getDoctor().getFullName());
                         event.put("description", "Specialization: " + app.getDoctor().getSpecialization());
-                        event.put("date", app.getDate().toString() + "T09:00:00.000");
+                        event.put("date", app.getDate().toString() + "T" + parseTimeSlotToIso(app.getTimeSlot()));
                         event.put("doctorName", app.getDoctor().getFullName());
                         event.put("hospitalName", app.getHospitalName());
                         event.put("referenceId", app.getId());
@@ -444,6 +463,36 @@ public class PatientController {
 
                     return ResponseEntity.ok(events);
                 }).orElse(ResponseEntity.notFound().build());
+    }
+
+    /**
+     * Looks up any patient's real profile by their Unified Health ID. Used by the
+     * doctor's Clinical Workspace to load the actual selected patient (no dummy
+     * fallback — an unknown ID returns 404 so the UI shows "not found").
+     *
+     * Health IDs are formatted "NUD-000-<patientId>", so the trailing numeric
+     * segment is parsed back into the patient id.
+     */
+    @GetMapping("/{healthId}/profile")
+    @PreAuthorize("hasAnyRole('DOCTOR','HOSPITAL','ADMIN','PATIENT')")
+    public ResponseEntity<PatientProfileDto> getPatientProfileByHealthId(@PathVariable String healthId) {
+        return resolvePatientByHealthId(healthId)
+                .map(p -> ResponseEntity.ok(mapToProfileDto(p)))
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    private Optional<Patient> resolvePatientByHealthId(String healthId) {
+        if (healthId == null || healthId.isBlank()) return Optional.empty();
+        String trimmed = healthId.trim();
+        int lastDash = trimmed.lastIndexOf('-');
+        if (lastDash >= 0 && lastDash < trimmed.length() - 1) {
+            try {
+                return patientRepository.findById(Long.parseLong(trimmed.substring(lastDash + 1)));
+            } catch (NumberFormatException ignored) {
+                // health id did not end in a numeric patient id
+            }
+        }
+        return Optional.empty();
     }
 
     private PatientProfileDto mapToProfileDto(Patient p) {

@@ -14,6 +14,8 @@ spring:
 jwt:
   secret: ${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
 
+# The Gemini key is read from the GEMINI_API_KEY environment variable ONLY.
+# Never hardcode the key here — this file may be committed to git.
 gemini:
   api:
     key: ${GEMINI_API_KEY:}
