@@ -525,7 +525,9 @@ public class CopilotController {
 
     private String resolveKey() {
         String apiKey = System.getenv("GEMINI_API_KEY");
-        if (apiKey == null || apiKey.isEmpty() || apiKey.startsWith("YOUR_")) apiKey = geminiApiKey;
+        if (apiKey != null) apiKey = apiKey.trim();
+        String localKey = geminiApiKey != null ? geminiApiKey.trim() : "";
+        if (apiKey == null || apiKey.isEmpty() || apiKey.startsWith("YOUR_")) apiKey = localKey;
         if (apiKey == null || apiKey.isEmpty() || apiKey.startsWith("YOUR_")) return null;
         return apiKey;
     }
