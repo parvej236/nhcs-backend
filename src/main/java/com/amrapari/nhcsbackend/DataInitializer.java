@@ -6,13 +6,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
-
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+
 
 @Component
 @RequiredArgsConstructor
@@ -42,17 +42,7 @@ public class DataInitializer implements CommandLineRunner {
         createJudgeDataIfEmpty();
     }
 
-    /**
-     * Seeds the demo login accounts for the elevated roles. Patient
-     * self-registers (see AuthService); Doctor / Hospital / Admin are never
-     * self-created, so they are seeded here. The doctor account is linked to an
-     * existing seeded Doctor profile so it resolves the doctor portal on login.
-     *
-     * Dev demo credentials (do NOT ship to production): doctor / password123
-     * (ROLE_DOCTOR, linked to Dr. Ahmed Chowdhury) hospital / password123
-     * (ROLE_HOSPITAL) The existing patient account is seeded in
-     * createMockPatientIfEmpty(): patient / password123 (ROLE_PATIENT)
-     */
+
     private void createLoginAccountsIfEmpty() {
         if (userRepository.findByUsername("doctor").isEmpty()) {
             User doctorUser = User.builder()
