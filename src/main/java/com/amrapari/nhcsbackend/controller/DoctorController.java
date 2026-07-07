@@ -486,8 +486,10 @@ public class DoctorController {
         String briefing = "";
 
         String apiKey = System.getenv("GEMINI_API_KEY");
+        if (apiKey != null) apiKey = apiKey.trim();
+        String localKey = geminiApiKey != null ? geminiApiKey.trim() : "";
         if (apiKey == null || apiKey.isEmpty() || apiKey.startsWith("YOUR_")) {
-            apiKey = geminiApiKey;
+            apiKey = localKey;
         }
 
         boolean geminiSuccess = false;
